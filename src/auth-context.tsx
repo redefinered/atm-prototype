@@ -1,9 +1,8 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable prettier/prettier */
 
 import React, {createContext, useState} from 'react';
 
-const AuthContext = createContext({
+export const AuthContext = createContext({
   // access token for user to control playback
   token: '',
 
@@ -12,7 +11,7 @@ const AuthContext = createContext({
 });
 
 const AuthContextProvider = (props: any) => {
-  const [token, setToken] = useState<string>('');
+  const [token, setToken] = useState<string>('0');
 
   return (
     <AuthContext.Provider value={{token, setToken}}>

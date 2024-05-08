@@ -1,7 +1,6 @@
-/* eslint-disable prettier/prettier */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-import React, {useEffect, useMemo, useRef, useState} from 'react';
+import React, {useContext, useEffect, useMemo, useRef, useState} from 'react';
 import {
   SafeAreaView,
   Button,
@@ -16,6 +15,7 @@ import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import queryString from 'query-string';
 import axios from 'axios';
 import CallScreen from './src/join';
+import {AuthContext} from './src/auth-context';
 
 const PARAMS = {
   response_type: 'code',
@@ -101,7 +101,9 @@ function DetailsScreen({route, navigation}: any) {
 }
 
 function AuthCallbackScreen({route, navigation}: any) {
-  console.log({route});
+  const {setToken} = useContext(AuthContext);
+
+  // console.log({route});
   useEffect(() => {
     const getToken = async () => {
       const qs = require('qs');
@@ -125,11 +127,14 @@ function AuthCallbackScreen({route, navigation}: any) {
         data: data
       };
       const response = await axios.request(config);
-      console.log({response: response.data});
+      setToken(response.data.access_token);
+      // console.log({response: response.data});
     };
 
     getToken();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [route]);
+
   return (
     <View style={styles.container}>
       <Text>Auth callback screen</Text>
@@ -163,6 +168,13 @@ const linking: any = {
 };
 
 function App(): React.JSX.Element {
+  const {token} = useContext(AuthContext);
+
+  // check token
+  useEffect(() => {
+    console.log('token:', token);
+  }, [token]);
+
   return (
     <NavigationContainer linking={linking}>
       <Stack.Navigator initialRouteName="Home">

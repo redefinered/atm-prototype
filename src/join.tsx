@@ -1,8 +1,13 @@
 /* eslint-disable react-native/no-inline-styles */
 /* eslint-disable react/no-unstable-nested-components */
-/* eslint-disable prettier/prettier */
 
-import React, {useState, useRef, useEffect, MutableRefObject} from 'react';
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  MutableRefObject,
+  useContext
+} from 'react';
 import {
   Platform,
   KeyboardAvoidingView,
@@ -33,11 +38,18 @@ import MicOff from './assets/MicOff';
 import VideoOn from './assets/VideoOn';
 import VideoOff from './assets/VideoOff';
 import CameraSwitch from './assets/CameraSwitch';
+import PodcastPlay from './assets/PodcastPlay';
+import PodcastPause from './assets/PodcastPause';
+
 import IconContainer from './icon-container';
 import InCallManager from 'react-native-incall-manager';
+import axios, {AxiosError} from 'axios';
+import {AuthContext} from './auth-context';
 
 export default function CallScreen({}) {
   const [type, setType] = useState<any>('JOIN');
+  // const [type, setType] = useState<any>('WEBRTC_ROOM');
+  const {token} = useContext(AuthContext);
 
   let remoteRTCMessage = useRef();
   const otherUserId = useRef(null);
@@ -120,6 +132,74 @@ export default function CallScreen({}) {
       remoteRTCMessage.current = data.rtcMessage;
       otherUserId.current = data.callerId;
       setType('INCOMING_CALL');
+    });
+
+    socket.current.on('play', (data: any) => {
+      console.log('data on play event', data);
+      const getToken = async () => {
+        try {
+          let reqpayload = JSON.stringify({
+            context_uri: 'spotify:album:5ht7ItJgpBH7W6vJ5BqpPr',
+            offset: {
+              position: 5
+            },
+            position_ms: 0
+          });
+
+          let config = {
+            method: 'put',
+            url: 'https://api.spotify.com/v1/me/player/play',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`
+            },
+            data: reqpayload
+          };
+
+          const response = await axios.request(config);
+
+          console.log('play call response: ', response?.data);
+        } catch (error) {
+          // 401
+          console.log({error});
+        }
+      };
+
+      getToken();
+    });
+
+    socket.current.on('pause', (data: any) => {
+      console.log('data on pause event', data);
+      const getToken = async () => {
+        try {
+          let reqpayload = JSON.stringify({
+            context_uri: 'spotify:album:5ht7ItJgpBH7W6vJ5BqpPr',
+            offset: {
+              position: 5
+            },
+            position_ms: 0
+          });
+
+          let config = {
+            method: 'put',
+            url: 'https://api.spotify.com/v1/me/player/pause',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`
+            },
+            data: reqpayload
+          };
+
+          const response = await axios.request(config);
+
+          console.log('pause call response: ', response?.data);
+        } catch (error) {
+          // 401
+          console.log({error});
+        }
+      };
+
+      getToken();
     });
 
     socket.current.on('callAnswered', (data: any) => {
@@ -289,6 +369,20 @@ export default function CallScreen({}) {
     socket.current.emit('call', data);
   }
 
+  function podcastPlay() {
+    const data = {
+      calleeId: otherUserId.current
+    };
+    socket.current.emit('play', data);
+  }
+
+  function podcastPause() {
+    const data = {
+      calleeId: otherUserId.current
+    };
+    socket.current.emit('pause', data);
+  }
+
   const WebrtcRoomScreen = () => {
     return (
       <View
@@ -305,6 +399,36 @@ export default function CallScreen({}) {
             streamURL={localStream.toURL()}
           />
         ) : null}
+
+        <View
+          style={{
+            marginVertical: 12,
+            flexDirection: 'row',
+            justifyContent: 'space-evenly'
+          }}>
+          <IconContainer
+            style={{
+              borderWidth: 1.5,
+              borderColor: '#2B3034'
+            }}
+            backgroundColor={'transparent'}
+            onPress={podcastPlay}
+            Icon={() => {
+              return <PodcastPlay height={26} width={26} fill="#FFF" />;
+            }}
+          />
+          <IconContainer
+            style={{
+              borderWidth: 1.5,
+              borderColor: '#2B3034'
+            }}
+            backgroundColor={'transparent'}
+            onPress={podcastPause}
+            Icon={() => {
+              return <PodcastPause height={26} width={26} fill="#FFF" />;
+            }}
+          />
+        </View>
         {remoteStream ? (
           <RTCView
             objectFit={'cover'}
