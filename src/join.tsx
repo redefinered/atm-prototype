@@ -15,7 +15,8 @@ import {
   Keyboard,
   View,
   Text,
-  TouchableOpacity
+  TouchableOpacity,
+  Linking
 } from 'react-native';
 
 import {io} from 'socket.io-client';
@@ -43,8 +44,10 @@ import PodcastPause from './assets/PodcastPause';
 
 import IconContainer from './icon-container';
 import InCallManager from 'react-native-incall-manager';
-import axios, {AxiosError} from 'axios';
+import axios from 'axios';
 import {AuthContext} from './auth-context';
+import SpotifyLogo from './assets/SpotifyLogo';
+// import WebView from 'react-native-webview';
 
 export default function CallScreen({}) {
   const [type, setType] = useState<any>('JOIN');
@@ -136,15 +139,15 @@ export default function CallScreen({}) {
 
     socket.current.on('play', (data: any) => {
       console.log('data on play event', data);
-      const getToken = async () => {
+      const play = async () => {
         try {
-          let reqpayload = JSON.stringify({
-            context_uri: 'spotify:album:5ht7ItJgpBH7W6vJ5BqpPr',
-            offset: {
-              position: 5
-            },
-            position_ms: 0
-          });
+          // let reqpayload = JSON.stringify({
+          //   context_uri: 'spotify:album:5ht7ItJgpBH7W6vJ5BqpPr',
+          //   offset: {
+          //     position: 5
+          //   },
+          //   position_ms: 0
+          // });
 
           let config = {
             method: 'put',
@@ -152,8 +155,8 @@ export default function CallScreen({}) {
             headers: {
               'Content-Type': 'application/json',
               Authorization: `Bearer ${token}`
-            },
-            data: reqpayload
+            }
+            // data: reqpayload
           };
 
           const response = await axios.request(config);
@@ -165,29 +168,21 @@ export default function CallScreen({}) {
         }
       };
 
-      getToken();
+      play();
     });
 
     socket.current.on('pause', (data: any) => {
       console.log('data on pause event', data);
-      const getToken = async () => {
+      const pause = async () => {
         try {
-          let reqpayload = JSON.stringify({
-            context_uri: 'spotify:album:5ht7ItJgpBH7W6vJ5BqpPr',
-            offset: {
-              position: 5
-            },
-            position_ms: 0
-          });
-
           let config = {
             method: 'put',
             url: 'https://api.spotify.com/v1/me/player/pause',
             headers: {
               'Content-Type': 'application/json',
               Authorization: `Bearer ${token}`
-            },
-            data: reqpayload
+            }
+            // data: reqpayload
           };
 
           const response = await axios.request(config);
@@ -199,7 +194,23 @@ export default function CallScreen({}) {
         }
       };
 
-      getToken();
+      pause();
+    });
+
+    socket.current.on('open-player', (data: any) => {
+      console.log('open-player event', data);
+
+      const openUserPlayer = async () => {
+        try {
+          await Linking.openURL(
+            'https://open.spotify.com/episode/5WIk6IeyP4IOvoEKjOAGfm'
+          );
+        } catch (error) {
+          console.log('Error: cannot open this link');
+        }
+      };
+
+      openUserPlayer();
     });
 
     socket.current.on('callAnswered', (data: any) => {
@@ -376,6 +387,26 @@ export default function CallScreen({}) {
     socket.current.emit('play', data);
   }
 
+  function openPlayer() {
+    const data = {
+      calleeId: otherUserId.current
+    };
+    socket.current.emit('open-player', data);
+
+    // open player for me
+    const openUserPlayer = async () => {
+      try {
+        await Linking.openURL(
+          'https://open.spotify.com/episode/5WIk6IeyP4IOvoEKjOAGfm'
+        );
+      } catch (error) {
+        console.log('Error: cannot open this link');
+      }
+    };
+
+    openUserPlayer();
+  }
+
   function podcastPause() {
     const data = {
       calleeId: otherUserId.current
@@ -399,7 +430,13 @@ export default function CallScreen({}) {
             streamURL={localStream.toURL()}
           />
         ) : null}
-
+        {/* <WebView
+          source={{
+            uri: 'https://open.spotify.com/episode/5WIk6IeyP4IOvoEKjOAGfm'
+          }}
+          userAgent="macOS"
+          style={{flex: 1}}
+        /> */}
         <View
           style={{
             marginVertical: 12,
@@ -415,6 +452,17 @@ export default function CallScreen({}) {
             onPress={podcastPlay}
             Icon={() => {
               return <PodcastPlay height={26} width={26} fill="#FFF" />;
+            }}
+          />
+          <IconContainer
+            style={{
+              borderWidth: 1.5,
+              borderColor: '#2B3034'
+            }}
+            backgroundColor={'transparent'}
+            onPress={openPlayer}
+            Icon={() => {
+              return <SpotifyLogo height={26} width={26} fill="#FFF" />;
             }}
           />
           <IconContainer
