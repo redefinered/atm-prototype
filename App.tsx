@@ -8,7 +8,8 @@ import {
   Text,
   View,
   StyleSheet,
-  Linking
+  Linking,
+  TextInput
 } from 'react-native';
 import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
@@ -34,6 +35,8 @@ const AUTH_URL = `https://accounts.spotify.com/authorize?${queryString.stringify
 // };
 
 const HomeScreen = (props: any) => {
+  const {server, setServer} = useContext(AuthContext);
+
   const navigation = props.navigation;
   const isDarkMode = false;
 
@@ -47,6 +50,12 @@ const HomeScreen = (props: any) => {
   return (
     <SafeAreaView>
       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
+      <TextInput
+        onChangeText={setServer}
+        value={server.toLowerCase()}
+        placeholder="https://example.com"
+        style={styles.input}
+      />
       <Button
         onPress={openAuthLink}
         title="Authorize ATM for Spotify"
@@ -84,6 +93,12 @@ const styles = StyleSheet.create({
   button: {
     padding: 10,
     borderBottomWidth: 1
+  },
+  input: {
+    height: 40,
+    margin: 12,
+    borderWidth: 1,
+    padding: 10
   }
 });
 

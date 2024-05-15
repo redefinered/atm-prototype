@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable react-native/no-inline-styles */
 /* eslint-disable react/no-unstable-nested-components */
 
@@ -52,12 +53,14 @@ import SpotifyLogo from './assets/SpotifyLogo';
 export default function CallScreen({}) {
   const [type, setType] = useState<any>('JOIN');
   // const [type, setType] = useState<any>('WEBRTC_ROOM');
-  const {token} = useContext(AuthContext);
+  const {token, server} = useContext(AuthContext);
 
   let remoteRTCMessage = useRef();
   const otherUserId = useRef(null);
 
-  const [callerId] = useState<string>(createId());
+  const [callerId] = useState<string>(
+    Math.floor(100000 + Math.random() * 900000).toString()
+  );
   const socket = useRef<any>();
 
   // Stream of local user
@@ -107,21 +110,31 @@ export default function CallScreen({}) {
   /* This creates an WebRTC Peer Connection, which will be used to set local/remote descriptions and offers. */
   const peerConnection: MutableRefObject<RTCPeerConnection | null> = useRef(
     new RTCPeerConnection({
-      iceServers: [{urls: 'stun:stun.l.google.com:19302'}]
+      iceServers: [
+        {
+          urls: 'stun:stun.l.google.com:19302'
+        },
+        {
+          urls: 'stun:stun1.l.google.com:19302'
+        },
+        {
+          urls: 'stun:stun2.l.google.com:19302'
+        }
+      ]
     })
   );
 
   useEffect(() => {
     if (callerId === '0') return;
 
-    socket.current = io(process.env.SIGNALLING_SERVER_HOST, {
+    socket.current = io(server, {
       transports: ['websocket'],
       query: {
         callerId
         /* We have generated this `callerId` in `JoinScreen` implementation */
       }
     });
-  }, [callerId]);
+  }, [server, callerId]);
 
   useEffect(() => {
     localStream?.getTracks().forEach(track => {
@@ -131,198 +144,210 @@ export default function CallScreen({}) {
 
   // @@START_CALL
   useEffect(() => {
-    socket.current.on('newCall', (data: any) => {
-      remoteRTCMessage.current = data.rtcMessage;
-      otherUserId.current = data.callerId;
-      setType('INCOMING_CALL');
-    });
+    if (peerConnection.current) {
+      socket.current.on('newCall', (data: any) => {
+        remoteRTCMessage.current = data.rtcMessage;
+        otherUserId.current = data.callerId;
+        setType('INCOMING_CALL');
+      });
 
-    socket.current.on('play', (data: any) => {
-      console.log('data on play event', data);
-      const play = async () => {
-        try {
-          // let reqpayload = JSON.stringify({
-          //   context_uri: 'spotify:album:5ht7ItJgpBH7W6vJ5BqpPr',
-          //   offset: {
-          //     position: 5
-          //   },
-          //   position_ms: 0
-          // });
+      socket.current.on('play', (data: any) => {
+        console.log('data on play event', data);
+        const play = async () => {
+          try {
+            // let reqpayload = JSON.stringify({
+            //   context_uri: 'spotify:album:5ht7ItJgpBH7W6vJ5BqpPr',
+            //   offset: {
+            //     position: 5
+            //   },
+            //   position_ms: 0
+            // });
 
-          let config = {
-            method: 'put',
-            url: 'https://api.spotify.com/v1/me/player/play',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`
+            let config = {
+              method: 'put',
+              url: 'https://api.spotify.com/v1/me/player/play',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`
+              }
+              // data: reqpayload
+            };
+
+            const response = await axios.request(config);
+
+            console.log('play call response: ', response?.data);
+          } catch (error) {
+            // 401
+            console.log('spotify play error:', {error});
+          }
+        };
+
+        play();
+      });
+
+      socket.current.on('pause', (data: any) => {
+        console.log('data on pause event', data);
+        const pause = async () => {
+          try {
+            let config = {
+              method: 'put',
+              url: 'https://api.spotify.com/v1/me/player/pause',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`
+              }
+              // data: reqpayload
+            };
+
+            const response = await axios.request(config);
+
+            console.log('pause call response: ', response?.data);
+          } catch (error) {
+            // 401
+            console.log({error});
+          }
+        };
+
+        pause();
+      });
+
+      socket.current.on('open-player', (data: any) => {
+        console.log('open-player event', data);
+
+        const openUserPlayer = async () => {
+          try {
+            await Linking.openURL(
+              'https://open.spotify.com/episode/5WIk6IeyP4IOvoEKjOAGfm'
+            );
+          } catch (error) {
+            console.log('Error: cannot open this link');
+          }
+        };
+
+        openUserPlayer();
+      });
+
+      socket.current.on('callAnswered', (data: any) => {
+        /* This event occurs whenever remote peer accept the call. */
+        remoteRTCMessage.current = data.rtcMessage;
+        peerConnection.current?.setRemoteDescription(
+          new RTCSessionDescription(remoteRTCMessage.current)
+        );
+        setType('WEBRTC_ROOM');
+      });
+
+      socket.current.on('ICEcandidate', (data: any) => {
+        console.log('on ICEcandidate event');
+        /* This event is for exchangin Candidates. */
+        let message = data.rtcMessage;
+
+        if (peerConnection.current) {
+          peerConnection?.current
+            .addIceCandidate(
+              new RTCIceCandidate({
+                candidate: message.candidate,
+                sdpMid: message.id,
+                sdpMLineIndex: message.label
+              })
+            )
+            .then(data => {
+              console.log('SUCCESS');
+            })
+            .catch(err => {
+              console.log('Error', err);
+            });
+        }
+      });
+
+      let isFront = false;
+
+      /*The MediaDevices interface allows you to access connected media inputs such as cameras and microphones. We ask the user for permission to access those media inputs by invoking the mediaDevices.getUserMedia() method. */
+      mediaDevices.enumerateDevices().then((sourceInfos: any) => {
+        let videoSourceId;
+        for (let i = 0; i < sourceInfos.length; i++) {
+          const sourceInfo = sourceInfos[i];
+          if (
+            sourceInfo.kind === 'videoinput' &&
+            sourceInfo.facing === (isFront ? 'user' : 'environment')
+          ) {
+            videoSourceId = sourceInfo.deviceId;
+          }
+        }
+
+        mediaDevices
+          .getUserMedia({
+            audio: true,
+            video: {
+              mandatory: {
+                minWidth: 500, // Provide your own width, height and frame rate here
+                minHeight: 300,
+                minFrameRate: 30
+              },
+              facingMode: isFront ? 'user' : 'environment',
+              optional: videoSourceId ? [{sourceId: videoSourceId}] : []
             }
-            // data: reqpayload
-          };
-
-          const response = await axios.request(config);
-
-          console.log('play call response: ', response?.data);
-        } catch (error) {
-          // 401
-          console.log({error});
-        }
-      };
-
-      play();
-    });
-
-    socket.current.on('pause', (data: any) => {
-      console.log('data on pause event', data);
-      const pause = async () => {
-        try {
-          let config = {
-            method: 'put',
-            url: 'https://api.spotify.com/v1/me/player/pause',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`
-            }
-            // data: reqpayload
-          };
-
-          const response = await axios.request(config);
-
-          console.log('pause call response: ', response?.data);
-        } catch (error) {
-          // 401
-          console.log({error});
-        }
-      };
-
-      pause();
-    });
-
-    socket.current.on('open-player', (data: any) => {
-      console.log('open-player event', data);
-
-      const openUserPlayer = async () => {
-        try {
-          await Linking.openURL(
-            'https://open.spotify.com/episode/5WIk6IeyP4IOvoEKjOAGfm'
-          );
-        } catch (error) {
-          console.log('Error: cannot open this link');
-        }
-      };
-
-      openUserPlayer();
-    });
-
-    socket.current.on('callAnswered', (data: any) => {
-      /* This event occurs whenever remote peer accept the call. */
-      remoteRTCMessage.current = data.rtcMessage;
-      peerConnection.current?.setRemoteDescription(
-        new RTCSessionDescription(remoteRTCMessage.current)
-      );
-      setType('WEBRTC_ROOM');
-    });
-
-    socket.current.on('ICEcandidate', (data: any) => {
-      console.log('on ICEcandidate event');
-      /* This event is for exchangin Candidates. */
-      let message = data.rtcMessage;
-
-      if (peerConnection.current) {
-        peerConnection?.current
-          .addIceCandidate(new RTCIceCandidate(message.candidate))
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-shadow
-          .then((data: any) => {
-            console.log('SUCCESS');
           })
-          .catch((err: any) => {
-            console.log('Error', err);
+          .then((stream: any) => {
+            // Get local stream!
+            setlocalStream(stream);
+
+            // setup stream listening
+            // peerConnection.current?.addStream(stream);
+
+            // FIX add stream not does not work when local stream is set
+            /// do it in a useEffect block
+          })
+          .catch((error: any) => {
+            // Log error
+            console.log('Error: getUserMedia error', {error});
           });
-      }
-    });
+      });
 
-    let isFront = false;
+      peerConnection.current.onaddstream = (event: {
+        stream: React.SetStateAction<null>;
+      }) => {
+        console.log('@RN_WEBRTC_EVENT/call is connected');
+        setRemoteStream(event.stream);
+      };
 
-    /*The MediaDevices interface allows you to access connected media inputs such as cameras and microphones. We ask the user for permission to access those media inputs by invoking the mediaDevices.getUserMedia() method. */
-    mediaDevices.enumerateDevices().then((sourceInfos: any) => {
-      let videoSourceId;
-      for (let i = 0; i < sourceInfos.length; i++) {
-        const sourceInfo = sourceInfos[i];
-        if (
-          sourceInfo.kind === 'videoinput' &&
-          sourceInfo.facing === (isFront ? 'user' : 'environment')
-        ) {
-          videoSourceId = sourceInfo.deviceId;
+      // peerConnection.current?.addEventListener('onaddstream', (event: any) => {
+      //   console.log('call is connected');
+      //   setRemoteStream(event.stream);
+      // });
+
+      peerConnection.current?.addEventListener('connectionstatechange', () => {
+        console.log(
+          '@RN_WEBRTC_EVENT/connection state',
+          peerConnection.current?.connectionState
+        );
+      });
+
+      // Setup ice handling
+      peerConnection.current?.addEventListener('icecandidate', (event: any) => {
+        console.log('@RN_WEBRTC_EVENT/on candidates.');
+        if (event.candidate) {
+          // Alice sends serialized candidate data to Bob using Socket
+          sendICEcandidate({
+            calleeId: otherUserId.current,
+            rtcMessage: {
+              label: event.candidate.sdpMLineIndex,
+              id: event.candidate.sdpMid,
+              candidate: event.candidate.candidate
+            }
+          });
+        } else {
+          console.log('@RN_WEBRTC_EVENT/End of candidates.');
         }
-      }
-
-      mediaDevices
-        .getUserMedia({
-          audio: true,
-          video: {
-            mandatory: {
-              minWidth: 500, // Provide your own width, height and frame rate here
-              minHeight: 300,
-              minFrameRate: 30
-            },
-            facingMode: isFront ? 'user' : 'environment',
-            optional: videoSourceId ? [{sourceId: videoSourceId}] : []
-          }
-        })
-        .then((stream: any) => {
-          // Get local stream!
-          setlocalStream(stream);
-
-          // setup stream listening
-          // peerConnection.current?.addStream(stream);
-
-          // FIX add stream not does not work when local stream is set
-          /// do it in a useEffect block
-        })
-        .catch((error: any) => {
-          // Log error
-          console.log('Error: getUserMedia error', {error});
-        });
-    });
-
-    // peerConnection.current?.onaddstream = (event: {
-    //   stream: React.SetStateAction<null>;
-    // }) => {
-    //   console.log('call is connected');
-    //   setRemoteStream(event.stream);
-    // };
-
-    peerConnection.current?.addEventListener('onaddstream', (event: any) => {
-      console.log('call is connected');
-      setRemoteStream(event.stream);
-    });
-
-    peerConnection.current?.addEventListener('connectionstatechange', () => {
-      console.log('connection state', peerConnection.current?.connectionState);
-    });
-
-    // Setup ice handling
-    peerConnection.current?.addEventListener('icecandidate', (event: any) => {
-      if (event.candidate) {
-        // Alice sends serialized candidate data to Bob using Socket
-        sendICEcandidate({
-          calleeId: otherUserId.current,
-          rtcMessage: {
-            label: event.candidate.sdpMLineIndex,
-            id: event.candidate.sdpMid,
-            candidate: event.candidate.candidate
-          }
-        });
-      } else {
-        console.log('End of candidates.');
-      }
-    });
+      });
+    }
 
     return () => {
       socket.current.off('newCall');
       socket.current.off('callAnswered');
       socket.current.off('ICEcandidate');
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [peerConnection]);
 
   useEffect(() => {
     InCallManager.start();

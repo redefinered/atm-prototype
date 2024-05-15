@@ -7,14 +7,18 @@ export const AuthContext = createContext({
   token: '',
 
   // set action
-  setToken: (t: string) => {}
+  setToken: (t: string) => {},
+
+  server: '',
+  setServer: (t: string) => {}
 });
 
 const AuthContextProvider = (props: any) => {
   const [token, setToken] = useState<string>('0');
+  const [server, setServer] = useState<string>('http://192.168.100.152:8000');
 
   return (
-    <AuthContext.Provider value={{token, setToken}}>
+    <AuthContext.Provider value={{token, setToken, server, setServer}}>
       {props.children}
     </AuthContext.Provider>
   );
