@@ -63,6 +63,7 @@ const HomeScreen = (props: any) => {
         accessibilityLabel="Learn more about this purple button"
       />
       <Button onPress={() => navigation.navigate('Call')} title="Call" />
+      <Text>Build 2</Text>
     </SafeAreaView>
   );
 };
