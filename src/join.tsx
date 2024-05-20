@@ -33,7 +33,6 @@ import {
 import TextInputContainer from './text-input-container';
 import CallAnswer from './assets/CallAnswer';
 import CallEnd from './assets/CallEnd';
-import {createId} from './create-id.util';
 
 import MicOn from './assets/MicOn';
 import MicOff from './assets/MicOff';
@@ -152,6 +151,7 @@ export default function CallScreen({}) {
       });
 
       socket.current.on('play', (data: any) => {
+        console.log('@SPOTIFY_CONTROL/play token:', {callerId, token});
         const play = async () => {
           try {
             // let reqpayload = JSON.stringify({
@@ -175,14 +175,13 @@ export default function CallScreen({}) {
             // const response =
             await axios.request(config);
             socket.current.emit('@SPOTIFY_CONTROL', {msg: 'play success'});
-            console.log('@SPOTIFY_CONTROL/token:', {callerId, token});
             // console.log(
             //   '@SPOTIFY_CONTROL/play call response: ',
             //   response?.data
             // );
           } catch (error) {
             // 401
-            console.log('@SPOTIFY_CONTROL/spotify play error:', {error});
+            // console.log('@SPOTIFY_CONTROL/spotify play error:', {error});
             socket.current.emit('@SPOTIFY_CONTROL', {
               msg: 'play failure',
               error
@@ -194,7 +193,7 @@ export default function CallScreen({}) {
       });
 
       socket.current.on('pause', (data: any) => {
-        console.log('data on pause event', data);
+        console.log('@SPOTIFY_CONTROL/pause token:', {callerId, token});
         const pause = async () => {
           try {
             let config = {
@@ -214,7 +213,11 @@ export default function CallScreen({}) {
             console.log('@SPOTIFY_CONTROL/token:', {callerId, token});
           } catch (error) {
             // 401
-            console.log('@SPOTIFY_CONTROL/spotify pause error:', {error});
+            // console.log('@SPOTIFY_CONTROL/spotify pause error:', {error});
+            socket.current.emit('@SPOTIFY_CONTROL', {
+              msg: 'pause failure',
+              error
+            });
           }
         };
 
@@ -424,6 +427,13 @@ export default function CallScreen({}) {
     socket.current.emit('play', data);
   }
 
+  function podcastPause() {
+    const data = {
+      calleeId: otherUserId.current
+    };
+    socket.current.emit('pause', data);
+  }
+
   function openPlayer() {
     const data = {
       calleeId: otherUserId.current
@@ -442,13 +452,6 @@ export default function CallScreen({}) {
     };
 
     openUserPlayer();
-  }
-
-  function podcastPause() {
-    const data = {
-      calleeId: otherUserId.current
-    };
-    socket.current.emit('pause', data);
   }
 
   const WebrtcRoomScreen = () => {
