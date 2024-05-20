@@ -51,6 +51,7 @@ const HomeScreen = (props: any) => {
     <SafeAreaView>
       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
       <TextInput
+        keyboardType="number-pad"
         onChangeText={setServer}
         value={server.toLowerCase()}
         placeholder="https://example.com"
