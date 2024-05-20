@@ -15,7 +15,9 @@ export const AuthContext = createContext({
 
 const AuthContextProvider = (props: any) => {
   const [token, setToken] = useState<string>('0');
-  const [server, setServer] = useState<string>('http://192.168.100.152:8000');
+  const [server, setServer] = useState<string>(
+    'https://atm-signalling-server-fbfd163df1d1.herokuapp.com'
+  );
 
   return (
     <AuthContext.Provider value={{token, setToken, server, setServer}}>
