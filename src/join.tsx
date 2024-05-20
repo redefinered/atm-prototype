@@ -152,7 +152,6 @@ export default function CallScreen({}) {
       });
 
       socket.current.on('play', (data: any) => {
-        console.log('data on play event', data);
         const play = async () => {
           try {
             // let reqpayload = JSON.stringify({
@@ -173,12 +172,21 @@ export default function CallScreen({}) {
               // data: reqpayload
             };
 
-            const response = await axios.request(config);
-
-            console.log('play call response: ', response?.data);
+            // const response =
+            await axios.request(config);
+            socket.current.emit('@SPOTIFY_CONTROL', {msg: 'play success'});
+            console.log('@SPOTIFY_CONTROL/token:', {callerId, token});
+            // console.log(
+            //   '@SPOTIFY_CONTROL/play call response: ',
+            //   response?.data
+            // );
           } catch (error) {
             // 401
-            console.log('spotify play error:', {error});
+            console.log('@SPOTIFY_CONTROL/spotify play error:', {error});
+            socket.current.emit('@SPOTIFY_CONTROL', {
+              msg: 'play failure',
+              error
+            });
           }
         };
 
@@ -199,12 +207,14 @@ export default function CallScreen({}) {
               // data: reqpayload
             };
 
-            const response = await axios.request(config);
-
-            console.log('pause call response: ', response?.data);
+            // const response =
+            await axios.request(config);
+            // console.log('@SPOTIFY_CONTROL/pause call response: ', response);
+            socket.current.emit('@SPOTIFY_CONTROL', {msg: 'pause success'});
+            console.log('@SPOTIFY_CONTROL/token:', {callerId, token});
           } catch (error) {
             // 401
-            console.log({error});
+            console.log('@SPOTIFY_CONTROL/spotify pause error:', {error});
           }
         };
 
@@ -237,7 +247,7 @@ export default function CallScreen({}) {
       });
 
       socket.current.on('ICEcandidate', (data: any) => {
-        console.log('on ICEcandidate event');
+        console.log('@SOCKET_EVENT/ICEcandidate');
         /* This event is for exchangin Candidates. */
         let message = data.rtcMessage;
 
@@ -250,11 +260,12 @@ export default function CallScreen({}) {
                 sdpMLineIndex: message.label
               })
             )
+            // eslint-disable-next-line @typescript-eslint/no-shadow
             .then(data => {
-              console.log('SUCCESS');
+              console.log('@RN_WEBRTC_EVENT/SUCCESS addIceCandidate', {data});
             })
             .catch(err => {
-              console.log('Error', err);
+              console.log('@RN_WEBRTC_EVENT/Error addIceCandidate', err);
             });
         }
       });
@@ -276,16 +287,17 @@ export default function CallScreen({}) {
 
         mediaDevices
           .getUserMedia({
-            audio: true,
-            video: {
-              mandatory: {
-                minWidth: 500, // Provide your own width, height and frame rate here
-                minHeight: 300,
-                minFrameRate: 30
-              },
-              facingMode: isFront ? 'user' : 'environment',
-              optional: videoSourceId ? [{sourceId: videoSourceId}] : []
-            }
+            audio: true
+
+            // video: {
+            //   mandatory: {
+            //     minWidth: 500, // Provide your own width, height and frame rate here
+            //     minHeight: 300,
+            //     minFrameRate: 30
+            //   },
+            //   facingMode: isFront ? 'user' : 'environment',
+            //   optional: videoSourceId ? [{sourceId: videoSourceId}] : []
+            // }
           })
           .then((stream: any) => {
             // Get local stream!
@@ -303,12 +315,12 @@ export default function CallScreen({}) {
           });
       });
 
-      peerConnection.current.onaddstream = (event: {
-        stream: React.SetStateAction<null>;
-      }) => {
-        console.log('@RN_WEBRTC_EVENT/call is connected');
-        setRemoteStream(event.stream);
-      };
+      // peerConnection.current.onaddstream = (event: {
+      //   stream: React.SetStateAction<null>;
+      // }) => {
+      //   console.log('@RN_WEBRTC_EVENT/call is connected');
+      //   setRemoteStream(event.stream);
+      // };
 
       // peerConnection.current?.addEventListener('onaddstream', (event: any) => {
       //   console.log('call is connected');
